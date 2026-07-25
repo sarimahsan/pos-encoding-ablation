@@ -8,42 +8,35 @@ A modular, config-driven PyTorch framework for conducting empirical positional e
 
 ```mermaid
 flowchart TD
-    classDef input fill:#1e293b,stroke:#475569,stroke-width:2px,color:#f8fafc
-    classDef norm fill:#334155,stroke:#64748b,stroke-width:2px,color:#f8fafc
-    classDef attn fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#f8fafc
-    classDef dispatch fill:#581c87,stroke:#a855f7,stroke-width:2px,color:#f8fafc
-    classDef mlp fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc
-    classDef res fill:#1e1b4b,stroke:#818cf8,stroke-dasharray: 5 5,color:#f8fafc
-
-    Input["Input Token IDs (B, T)"] :::input --> Embed["Token Embedding Layer\n(Vocab: 50,257 → d_model: 512)"] :::input
+    Input["Input Token IDs (B, T)"] --> Embed["Token Embedding Layer (Vocab: 50,257 → d_model: 512)"]
     Embed --> BlockStart
 
     subgraph TransformerBlock ["Transformer Block × 8 Layers (Pre-Norm Residual)"]
         direction TB
-        BlockStart[Input x] --> Norm1["RMSNorm (d_model = 512)"] :::norm
-        Norm1 --> QKV["Linear QKV Projection\n(3 × 512 = 1536)"] :::attn
+        BlockStart[Input x] --> Norm1["RMSNorm (d_model = 512)"]
+        Norm1 --> QKV["Linear QKV Projection (3 × 512 = 1536)"]
         
-        QKV --> Dispatch{"Positional Encoding Dispatch\n(config.pos_encoding)"} :::dispatch
+        QKV --> Dispatch{"Positional Encoding Dispatch"}
         
-        Dispatch -- "rope" --> RoPE["Rotary Position Embedding\nRotate Q & K pairs via cos/sin cache"] :::dispatch
-        Dispatch -- "alibi" --> ALiBi["ALiBi Linear Bias\nAdd slope -|i-j| to attn scores (fp32)"] :::dispatch
-        Dispatch -- "nope" --> NoPE["No Positional Encoding\nPass-through (Causal Mask only)"] :::dispatch
+        Dispatch -- "rope" --> RoPE["Rotary Position Embedding\n(Rotate Q & K pairs via cos/sin cache)"]
+        Dispatch -- "alibi" --> ALiBi["ALiBi Linear Bias\n(Add slope -|i-j| to attn scores in fp32)"]
+        Dispatch -- "nope" --> NoPE["No Positional Encoding\n(Pass-through causal mask only)"]
         
-        RoPE --> AttnCore["Causal Scaled Dot-Product Attention\n(8 Heads, head_dim = 64)"] :::attn
+        RoPE --> AttnCore["Causal Scaled Dot-Product Attention\n(8 Heads, head_dim = 64)"]
         ALiBi --> AttnCore
         NoPE --> AttnCore
         
-        AttnCore --> OutProj["Output Projection (512 → 512)"] :::attn
-        OutProj --> Res1["[+] Residual Add: x = x + Attn(RMSNorm(x))"] :::res
+        AttnCore --> OutProj["Output Projection (512 → 512)"]
+        OutProj --> Res1["Residual Add: x = x + Attn(RMSNorm(x))"]
         
-        Res1 --> Norm2["RMSNorm (d_model = 512)"] :::norm
-        Norm2 --> SwiGLU["SwiGLU Gated MLP\nW2( silu(W1 x) * W3 x )\n(d_model: 512 → d_ff: 1376 → d_model: 512)"] :::mlp
-        SwiGLU --> Res2["[+] Residual Add: x = x + MLP(RMSNorm(x))"] :::res
+        Res1 --> Norm2["RMSNorm (d_model = 512)"]
+        Norm2 --> SwiGLU["SwiGLU Gated MLP\nW2( silu(W1 x) * W3 x )\n(d_model: 512 → d_ff: 1376 → d_model: 512)"]
+        SwiGLU --> Res2["Residual Add: x = x + MLP(RMSNorm(x))"]
     end
 
-    Res2 --> FinalNorm["Final RMSNorm (d_model = 512)"] :::norm
-    FinalNorm --> LMHead["Language Model Head\n(Tied Weights with Token Embedding)"] :::input
-    LMHead --> Logits["Logits Output (B, T, Vocab: 50,257)"] :::input
+    Res2 --> FinalNorm["Final RMSNorm (d_model = 512)"]
+    FinalNorm --> LMHead["Language Model Head\n(Tied Weights with Token Embedding)"]
+    LMHead --> Logits["Logits Output (B, T, Vocab: 50,257)"]
 ```
 
 ---
