@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Data & Outputs
+data_cache/
+outputs/
+*.pt
+*.bin
+*.tar.gz
+*.zip
+
+# PyTest & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Weights & Biases
+wandb/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
