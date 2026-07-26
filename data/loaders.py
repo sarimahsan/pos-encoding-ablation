@@ -22,7 +22,10 @@ def _tokenize_and_pack(
         token_ids = torch.load(cache_path, weights_only=True).tolist()
     else:
         print(f"  Downloading & tokenizing WikiText-103 ({split})...")
-        ds = load_dataset("wikitext", "wikitext-103-raw-v1", split=split)
+        try:
+            ds = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1", split=split)
+        except Exception:
+            ds = load_dataset("wikitext", "wikitext-103-raw-v1", split=split)
 
         eos_id = tokenizer.eos_token_id
         all_ids = []
