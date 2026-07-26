@@ -45,7 +45,7 @@ class TransformerConfig:
     warmup_steps: int = 500
     train_steps: int = 50_000
     batch_size: int = 128              # sequences per step
-    grad_accum_steps: int = 1          # increase if VRAM-limited
+    grad_accum_steps: int = 4          # micro-batch 32/16 to prevent CUDA OOM
     precision: str = "fp16"            # T4 = Turing, no native bf16
     grad_clip: float = 1.0            # global norm
     seed: int = 42

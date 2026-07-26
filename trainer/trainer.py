@@ -81,6 +81,8 @@ class Trainer:
         print(f"{'='*60}\n")
 
         self.wall_clock_start = time.time()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         model.train()
         train_iter = iter(train_loader)
         running_loss = 0.0
