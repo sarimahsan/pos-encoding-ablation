@@ -67,7 +67,7 @@ def test_decoder_transformer_param_count_and_forward(pos_enc):
     input_ids = torch.randint(0, 1000, (2, 16))
     targets = torch.randint(0, 1000, (2, 16))
 
-    out = model(input_ids, targets)
+    out = model(input_ids, targets, return_attn=True)
     assert out["logits"].shape == (2, 16, cfg.vocab_size)
     assert len(out["attn_weights"]) == cfg.n_layers
     assert "loss" in out

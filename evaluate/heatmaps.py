@@ -49,7 +49,7 @@ def generate_attention_heatmap(
     seq_len = input_ids.shape[1]
 
     with autocast("cuda", enabled=use_amp):
-        output = model(input_ids, targets)
+        output = model(input_ids, targets, return_attn=True)
 
     attn = output["attn_weights"][layer_idx][0, head_idx].float().cpu()
     attn_np = attn[:max_tokens, :max_tokens].numpy()

@@ -66,7 +66,7 @@ def compute_attention_entropy(
         targets = targets.to(device)
 
         with autocast("cuda", enabled=use_amp):
-            output = model(input_ids, targets)
+            output = model(input_ids, targets, return_attn=True)
 
         for attn_w in output["attn_weights"]:
             attn_w = attn_w.float().clamp(min=1e-8)
@@ -106,7 +106,7 @@ def compute_attention_entropy_detailed(
         targets = targets.to(device)
 
         with autocast("cuda", enabled=use_amp):
-            output = model(input_ids, targets)
+            output = model(input_ids, targets, return_attn=True)
 
         for layer_idx, attn_w in enumerate(output["attn_weights"]):
             attn_w = attn_w.float().clamp(min=1e-8)

@@ -43,15 +43,16 @@ class DecoderTransformer(nn.Module):
                         p.mul_(1.0 / math.sqrt(2.0 * config.n_layers))
 
     def forward(
-        self, input_ids: torch.Tensor, targets: torch.Tensor = None
+        self, input_ids: torch.Tensor, targets: torch.Tensor = None, return_attn: bool = False
     ) -> dict:
         B, T = input_ids.shape
         x = self.token_embed(input_ids)
 
-        attn_weights_all = []
+        attn_weights_all = [] if return_attn else None
         for block in self.blocks:
             x, attn_w = block(x)
-            attn_weights_all.append(attn_w)
+            if return_attn:
+                attn_weights_all.append(attn_w)
 
         x = self.final_norm(x)
 
@@ -60,7 +61,9 @@ class DecoderTransformer(nn.Module):
         else:
             logits = self.lm_head(x)
 
-        result = {"logits": logits, "attn_weights": attn_weights_all}
+        result = {"logits": logits}
+        if return_attn:
+            result["attn_weights"] = attn_weights_all
 
         if targets is not None:
             shift_logits = logits[:, :-1, :].contiguous()
