@@ -11,7 +11,7 @@ Secondary:
 
 import math
 import torch
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 
 
 @torch.no_grad()
@@ -35,7 +35,7 @@ def evaluate_at_length(
         input_ids = input_ids.to(device)
         targets = targets.to(device)
 
-        with autocast(device_type="cuda", enabled=use_amp):
+        with autocast("cuda", enabled=use_amp):
             output = model(input_ids, targets)
             total_loss += output["loss"].item()
         n_batches += 1
@@ -65,7 +65,7 @@ def compute_attention_entropy(
         input_ids = input_ids.to(device)
         targets = targets.to(device)
 
-        with autocast(device_type="cuda", enabled=use_amp):
+        with autocast("cuda", enabled=use_amp):
             output = model(input_ids, targets)
 
         for attn_w in output["attn_weights"]:
@@ -105,7 +105,7 @@ def compute_attention_entropy_detailed(
         input_ids = input_ids.to(device)
         targets = targets.to(device)
 
-        with autocast(device_type="cuda", enabled=use_amp):
+        with autocast("cuda", enabled=use_amp):
             output = model(input_ids, targets)
 
         for layer_idx, attn_w in enumerate(output["attn_weights"]):

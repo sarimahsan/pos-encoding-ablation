@@ -9,7 +9,7 @@ import time
 import json
 import datetime
 import torch
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 
 from config import TransformerConfig
 from components import DecoderTransformer
@@ -43,7 +43,7 @@ class Trainer:
         )
 
         self.scheduler = build_cosine_scheduler(self.optimizer, config)
-        self.scaler = GradScaler(enabled=(config.precision == "fp16"))
+        self.scaler = GradScaler("cuda", enabled=(config.precision == "fp16"))
         self.use_amp = config.precision == "fp16"
 
         self.global_step = 0
@@ -112,7 +112,7 @@ class Trainer:
                     input_ids = input_ids.to(self.device)
                     targets = targets.to(self.device)
 
-                    with autocast(device_type="cuda", enabled=self.use_amp):
+                    with autocast("cuda", enabled=self.use_amp):
                         output = model(input_ids, targets)
                         loss = output["loss"] / cfg.grad_accum_steps
 

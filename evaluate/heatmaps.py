@@ -7,7 +7,7 @@ analysis and reproduction without reloading the checkpoint.
 
 import os
 import torch
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 
 
 @torch.no_grad()
@@ -48,7 +48,7 @@ def generate_attention_heatmap(
     targets = targets[:1, :max_tokens].to(device)
     seq_len = input_ids.shape[1]
 
-    with autocast(device_type="cuda", enabled=use_amp):
+    with autocast("cuda", enabled=use_amp):
         output = model(input_ids, targets)
 
     attn = output["attn_weights"][layer_idx][0, head_idx].float().cpu()
