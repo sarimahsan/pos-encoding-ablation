@@ -214,7 +214,7 @@ Runs 2 seeds automatically (seed 42 & seed 43) and saves both in one zip file.
     print(f"{'='*60}")
     for length, m in aggregated["aggregated_metrics"].items():
         print(
-            f"  seq_len={length:>4d} ({m['type']:>14s}): "
+            f"  seq_len={int(length):>4d} ({m['type']:>14s}): "
             f"Loss={m['loss']['mean']:.4f} ± {m['loss']['std']:.4f} | "
             f"PPL={m['perplexity']['mean']:.2f} ± {m['perplexity']['std']:.2f} | "
             f"Entropy={m['attention_entropy']['mean']:.4f} ± {m['attention_entropy']['std']:.4f}"
