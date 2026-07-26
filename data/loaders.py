@@ -68,6 +68,7 @@ def get_dataloaders(config: TransformerConfig) -> dict:
     # Evaluation data at each eval seq_len
     for eval_len in config.eval_seq_lens:
         print(f"  Preparing eval data (seq_len={eval_len})...")
+        val_ds = _tokenize_and_pack("validation", tokenizer, eval_len)
         eval_batch_size = max(1, 8 if eval_len >= 1024 else (16 if eval_len >= 768 else 32))
         val_loader = DataLoader(
             val_ds,
