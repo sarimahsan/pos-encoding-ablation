@@ -111,19 +111,12 @@ class Trainer:
                         train_iter = iter(train_loader)
                         input_ids, targets = next(train_iter)
 
-                    input_ids = input_ids.to(self.device)
-                    targets = targets.to(self.device)
+                    input_ids = input_ids.to(self.device, non_blocking=True)
+                    targets = targets.to(self.device, non_blocking=True)
 
                     with autocast("cuda", enabled=self.use_amp):
                         output = model(input_ids, targets)
                         loss = output["loss"] / cfg.grad_accum_steps
-
-                    if torch.isnan(loss) or torch.isinf(loss):
-                        self.anomalies.append({
-                            "step": step, "type": "nan_or_inf_loss",
-                            "timestamp": datetime.datetime.now().isoformat(),
-                        })
-                        print(f"  WARNING: NaN/Inf loss at step {step}!")
 
                     self.scaler.scale(loss).backward()
                     accum_loss += loss.item()
