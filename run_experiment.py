@@ -101,8 +101,12 @@ def run_single_seed(args, base_config, seed: int, experiment_base_dir: str) -> d
         config.use_wandb = True
 
     config.seed = seed
-    config.output_dir = os.path.join(experiment_base_dir, f"seed_{seed}")
-    config.run_name = f"{base_config.run_name}_seed{seed}"
+    if len(args.seeds) == 1:
+        config.output_dir = experiment_base_dir
+        config.run_name = base_config.run_name
+    else:
+        config.output_dir = os.path.join(experiment_base_dir, f"seed_{seed}")
+        config.run_name = f"{base_config.run_name}_seed{seed}"
 
     print(f"\n{'='*60}")
     print(f"  STARTING RUN: {config.run_name} (Seed {seed})")
@@ -138,7 +142,8 @@ def run_single_seed(args, base_config, seed: int, experiment_base_dir: str) -> d
 
         print(f"  Loading checkpoint: {ckpt_path}")
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
-        model.load_state_dict(ckpt["model_state_dict"])
+        state_dict = {k.replace("_orig_mod.", ""): v for k, v in ckpt["model_state_dict"].items()}
+        model.load_state_dict(state_dict)
         model.to(device)
     else:
         trainer = Trainer(config, model, dataloaders)
@@ -150,7 +155,8 @@ def run_single_seed(args, base_config, seed: int, experiment_base_dir: str) -> d
             best_path = os.path.join(ckpt_dir, best_files[0])
             print(f"  Loading best checkpoint for final evaluation: {best_path}")
             ckpt = torch.load(best_path, map_location=device, weights_only=False)
-            model.load_state_dict(ckpt["model_state_dict"])
+            state_dict = {k.replace("_orig_mod.", ""): v for k, v in ckpt["model_state_dict"].items()}
+            model.load_state_dict(state_dict)
 
         trainer.generate_heatmaps()
 
@@ -183,8 +189,8 @@ Runs 2 seeds automatically (seed 42 & seed 43) and saves both in one zip file.
                  "r1", "r2", "r3", "r4", "r5", "r6"],
         help="Experiment run ID (R1-R6)",
     )
-    parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43],
-                        help="Seeds to run (default: 42 43)")
+    parser.add_argument("--seeds", type=int, nargs="+", default=[42],
+                        help="Seeds to run (default: 42)")
     parser.add_argument("--train_steps", type=int, default=None, help="Override training steps per seed")
     parser.add_argument("--batch_size", type=int, default=None, help="Override batch size")
     parser.add_argument("--grad_accum", type=int, default=None, help="Gradient accumulation steps")
@@ -199,30 +205,42 @@ Runs 2 seeds automatically (seed 42 & seed 43) and saves both in one zip file.
     os.makedirs(experiment_base_dir, exist_ok=True)
 
     print(base_config.summary())
-    print(f"  Seeds to execute: {args.seeds} (Automatic 2-Seed Mode)\n")
+    mode_str = f"Single Seed Mode (Seed {args.seeds[0]})" if len(args.seeds) == 1 else f"Multi-Seed Mode ({len(args.seeds)} seeds)"
+    print(f"  Seeds to execute: {args.seeds} ({mode_str})\n")
 
     seed_results = []
     for s in args.seeds:
         res = run_single_seed(args, base_config, s, experiment_base_dir)
         seed_results.append(res)
 
-    # Compute and save aggregated metrics (Mean ± Std)
-    aggregated = compute_aggregated_metrics(seed_results)
-    agg_path = os.path.join(experiment_base_dir, "aggregated_summary.json")
-    with open(agg_path, "w") as f:
-        json.dump(aggregated, f, indent=2)
+    if len(args.seeds) > 1:
+        # Compute and save aggregated metrics (Mean ± Std)
+        aggregated = compute_aggregated_metrics(seed_results)
+        agg_path = os.path.join(experiment_base_dir, "aggregated_summary.json")
+        with open(agg_path, "w") as f:
+            json.dump(aggregated, f, indent=2)
 
-    print(f"\n{'='*60}")
-    print(f"  AGGREGATED RESULTS ACROSS {len(args.seeds)} SEEDS (Mean ± Std)")
-    print(f"{'='*60}")
-    for length, m in aggregated["aggregated_metrics"].items():
-        print(
-            f"  seq_len={int(length):>4d} ({m['type']:>14s}): "
-            f"Loss={m['loss']['mean']:.4f} ± {m['loss']['std']:.4f} | "
-            f"PPL={m['perplexity']['mean']:.2f} ± {m['perplexity']['std']:.2f} | "
-            f"Entropy={m['attention_entropy']['mean']:.4f} ± {m['attention_entropy']['std']:.4f}"
-        )
-    print(f"  Saved aggregated summary: {agg_path}")
+        print(f"\n{'='*60}")
+        print(f"  AGGREGATED RESULTS ACROSS {len(args.seeds)} SEEDS (Mean ± Std)")
+        print(f"{'='*60}")
+        for length, m in aggregated["aggregated_metrics"].items():
+            print(
+                f"  seq_len={int(length):>4d} ({m['type']:>14s}): "
+                f"Loss={m['loss']['mean']:.4f} ± {m['loss']['std']:.4f} | "
+                f"PPL={m['perplexity']['mean']:.2f} ± {m['perplexity']['std']:.2f} | "
+                f"Entropy={m['attention_entropy']['mean']:.4f} ± {m['attention_entropy']['std']:.4f}"
+            )
+        print(f"  Saved aggregated summary: {agg_path}")
+    else:
+        print(f"\n{'='*60}")
+        print(f"  SINGLE SEED EVALUATION SUMMARY (Seed {args.seeds[0]})")
+        print(f"{'='*60}")
+        res_metrics = seed_results[0].get("metrics", {})
+        for length, m in res_metrics.items():
+            print(
+                f"  seq_len={int(length):>4d} ({m['type']:>14s}): "
+                f"Loss={m['loss']:.4f} | PPL={m['perplexity']:.2f} | Entropy={m['attention_entropy_mean']:.4f}"
+            )
 
     # Print folder tree of full experiment output
     print(f"\n{'='*60}")

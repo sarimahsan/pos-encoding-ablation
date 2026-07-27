@@ -191,12 +191,17 @@ class Trainer:
             jsonl_file.close()
             csv_file.close()
 
-        self._run_eval(self.global_step, final=True)
+        # HARD CHECKPOINT TRIGGER: Save final weights & metadata IMMEDIATELY
+        # before running final eval or heatmaps so weights/logs are safe on disk.
+        print(f"\n  [HARD TRIGGER] Saving final model checkpoint & metadata at step {self.global_step}...")
         self._save_checkpoint(self.global_step, final=True)
         self.artifacts.save_run_metadata(
             self.model, self.global_step, self.best_val_loss,
             self.wall_clock_start, self.wall_clock_end, self.anomalies,
         )
+
+        # Post-training evaluation
+        self._run_eval(self.global_step, final=True)
 
         if self.wandb_run:
             self.wandb_run.finish()
@@ -303,9 +308,10 @@ class Trainer:
             filename = f"run_{cfg.run_name}_step{step}.pt"
 
         path = self.artifacts.path("checkpoints", filename)
+        raw_model = getattr(self.model, "_orig_mod", self.model)
         torch.save({
             "step": step,
-            "model_state_dict": self.model.state_dict(),
+            "model_state_dict": raw_model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
             "scaler_state_dict": self.scaler.state_dict(),
