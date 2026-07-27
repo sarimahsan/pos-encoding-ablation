@@ -50,7 +50,7 @@ class DecoderTransformer(nn.Module):
 
         attn_weights_all = [] if return_attn else None
         for block in self.blocks:
-            x, attn_w = block(x)
+            x, attn_w = block(x, return_attn=return_attn)
             if return_attn:
                 attn_weights_all.append(attn_w)
 

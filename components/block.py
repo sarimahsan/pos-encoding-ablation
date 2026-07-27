@@ -26,8 +26,8 @@ class TransformerBlock(nn.Module):
         self.mlp_norm = RMSNorm(config.d_model)
         self.mlp = SwiGLU_MLP(config)
 
-    def forward(self, x: torch.Tensor) -> tuple:
-        attn_out, attn_weights = self.attn(self.attn_norm(x))
+    def forward(self, x: torch.Tensor, return_attn: bool = False) -> tuple:
+        attn_out, attn_weights = self.attn(self.attn_norm(x), return_attn=return_attn)
         x = x + attn_out
         x = x + self.mlp(self.mlp_norm(x))
         return x, attn_weights

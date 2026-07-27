@@ -44,9 +44,16 @@ def test_attention_modes(pos_enc):
     cfg = TransformerConfig(pos_encoding=pos_enc)
     attn = Attention(cfg)
     x = torch.randn(2, 16, 512)
-    out, weights = attn(x)
-    assert out.shape == (2, 16, 512)
-    assert weights.shape == (2, 8, 16, 16)
+
+    # Fast path (training): no attention weights materialized
+    out_fast, weights_fast = attn(x, return_attn=False)
+    assert out_fast.shape == (2, 16, 512)
+    assert weights_fast is None
+
+    # Slow path (eval): full attention weights returned
+    out_slow, weights_slow = attn(x, return_attn=True)
+    assert out_slow.shape == (2, 16, 512)
+    assert weights_slow.shape == (2, 8, 16, 16)
 
 
 def test_swiglu_mlp():

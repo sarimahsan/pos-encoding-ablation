@@ -43,7 +43,7 @@ class Attention(nn.Module):
         mask = torch.tril(torch.ones(config.max_seq_len, config.max_seq_len))
         self.register_buffer("causal_mask", mask, persistent=False)
 
-    def forward(self, x: torch.Tensor) -> tuple:
+    def forward(self, x: torch.Tensor, return_attn: bool = False) -> tuple:
         B, T, _ = x.shape
 
         # QKV projection → split into heads
@@ -59,23 +59,41 @@ class Attention(nn.Module):
         if self.config.pos_encoding == "rope":
             q, k = self.rotary(q, k, T)
 
-        # Scaled dot-product attention
-        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        if return_attn:
+            # ── Slow path: materialize attention weights (eval only) ──
+            scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
 
-        if self.config.pos_encoding == "alibi":
-            scores = self.alibi(scores, T)
+            if self.config.pos_encoding == "alibi":
+                scores = self.alibi(scores, T)
 
-        # Causal mask — extend if needed
-        if T > self.causal_mask.size(0):
-            mask = torch.tril(torch.ones(T, T, device=x.device))
-            self.causal_mask = mask
-        scores = scores.masked_fill(
-            self.causal_mask[:T, :T].unsqueeze(0).unsqueeze(0) == 0,
-            float("-inf"),
+            if T > self.causal_mask.size(0):
+                mask = torch.tril(torch.ones(T, T, device=x.device))
+                self.causal_mask = mask
+            scores = scores.masked_fill(
+                self.causal_mask[:T, :T].unsqueeze(0).unsqueeze(0) == 0,
+                float("-inf"),
+            )
+
+            attn = F.softmax(scores, dim=-1)
+            out = (attn @ v).transpose(1, 2).contiguous().view(B, T, self.d_model)
+            return self.out_proj(out), attn
+        else:
+            # ── Fast path: fused SDPA kernels (training) ──────────────
+            if self.config.pos_encoding == "alibi":
+                attn_mask = self._build_alibi_causal_mask(T, x.device, x.dtype)
+                out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask)
+            else:
+                out = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+
+            out = out.transpose(1, 2).contiguous().view(B, T, self.d_model)
+            return self.out_proj(out), None
+
+    def _build_alibi_causal_mask(self, T: int, device, dtype):
+        """Combine ALiBi bias with causal mask for SDPA."""
+        if T > self.alibi.bias.size(1):
+            self.alibi._build_bias(T)
+        alibi_bias = self.alibi.bias[:, :T, :T]                    # (H, T, T)
+        causal = torch.triu(
+            torch.full((T, T), float("-inf"), device=device), diagonal=1
         )
-
-        attn = F.softmax(scores, dim=-1)
-
-        # Combine heads
-        out = (attn @ v).transpose(1, 2).contiguous().view(B, T, self.d_model)
-        return self.out_proj(out), attn
+        return (alibi_bias + causal).unsqueeze(0).to(dtype)         # (1, H, T, T)
