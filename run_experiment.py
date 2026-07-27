@@ -95,6 +95,8 @@ def run_single_seed(args, base_config, seed: int, experiment_base_dir: str) -> d
         config.batch_size = args.batch_size
     if args.grad_accum is not None:
         config.grad_accum_steps = args.grad_accum
+    if args.compile:
+        config.compile = True
     if args.wandb:
         config.use_wandb = True
 
@@ -186,6 +188,7 @@ Runs 2 seeds automatically (seed 42 & seed 43) and saves both in one zip file.
     parser.add_argument("--train_steps", type=int, default=None, help="Override training steps per seed")
     parser.add_argument("--batch_size", type=int, default=None, help="Override batch size")
     parser.add_argument("--grad_accum", type=int, default=None, help="Gradient accumulation steps")
+    parser.add_argument("--compile", action="store_true", help="Enable torch.compile for 1.5x-2x speedup")
     parser.add_argument("--wandb", action="store_true", help="Enable W&B logging")
     parser.add_argument("--eval_only", action="store_true", help="Skip training, eval saved checkpoints")
 

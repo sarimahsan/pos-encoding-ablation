@@ -34,6 +34,12 @@ class Trainer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model.to(self.device)
+        if hasattr(torch, "compile") and self.device.type == "cuda" and getattr(config, "compile", False):
+            print("  Compiling model with PyTorch 2.x torch.compile()...")
+            try:
+                self.model = torch.compile(self.model)
+            except Exception as e:
+                print(f"  torch.compile failed, continuing uncompiled: {e}")
 
         self.optimizer = torch.optim.AdamW(
             self.model.parameters(),

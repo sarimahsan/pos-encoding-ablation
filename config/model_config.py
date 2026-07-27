@@ -47,6 +47,7 @@ class TransformerConfig:
     batch_size: int = 128              # sequences per step
     grad_accum_steps: int = 4          # micro-batch 32/16 to prevent CUDA OOM
     precision: str = "fp16"            # T4 = Turing, no native bf16
+    compile: bool = False              # PyTorch 2.x torch.compile
     grad_clip: float = 1.0            # global norm
     seed: int = 42
 
