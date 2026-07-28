@@ -43,7 +43,7 @@ class TransformerConfig:
     beta2: float = 0.95
     weight_decay: float = 0.1
     warmup_steps: int = 500
-    train_steps: int = 50_000
+    train_steps: int = 12_000
     batch_size: int = 128              # sequences per step
     grad_accum_steps: int = 4          # micro-batch 32/16 to prevent CUDA OOM
     precision: str = "fp16"            # T4 = Turing, no native bf16

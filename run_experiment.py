@@ -1,21 +1,21 @@
 """
 CLI entry point for running positional encoding ablation experiments.
 
-Runs 2 seeds automatically (default: seed 42 & seed 43) per experiment,
-saves outputs in separate seed subfolders, generates an aggregated statistical
-summary (mean ± std), and zips the combined output folder for download.
+Runs 1 seed (default: seed 42, 12,000 steps) per experiment, saving outputs
+and metrics (including attention geometry: entropy, sink ratio, effective distance,
+and diagonal mass ratio) in the experiment output folder.
 
 Usage:
-    python run_experiment.py --run R1    # Runs RoPE @ 256 for Seed 42 & Seed 43
-    python run_experiment.py --run R2    # Runs RoPE @ 512 for Seed 42 & Seed 43
-    python run_experiment.py --run R3    # Runs ALiBi @ 256 for Seed 42 & Seed 43
-    python run_experiment.py --run R4    # Runs ALiBi @ 512 for Seed 42 & Seed 43
-    python run_experiment.py --run R5    # Runs NoPE @ 256 for Seed 42 & Seed 43
-    python run_experiment.py --run R6    # Runs NoPE @ 512 for Seed 42 & Seed 43
+    python run_experiment.py --run R1    # Runs RoPE @ 256 for Seed 42 (12k steps)
+    python run_experiment.py --run R2    # Runs RoPE @ 512 for Seed 42 (12k steps)
+    python run_experiment.py --run R3    # Runs ALiBi @ 256 for Seed 42 (12k steps)
+    python run_experiment.py --run R4    # Runs ALiBi @ 512 for Seed 42 (12k steps)
+    python run_experiment.py --run R5    # Runs NoPE @ 256 for Seed 42 (12k steps)
+    python run_experiment.py --run R6    # Runs NoPE @ 512 for Seed 42 (12k steps)
 
 Optional overrides:
-    --seeds 42 43 44    Override seeds to run (default: [42, 43])
-    --train_steps N     Override training steps per seed (default: 50000)
+    --seeds 42 43       Override seeds to run multi-seed mode (default: [42])
+    --train_steps N     Override training steps per seed (default: 12000)
     --batch_size N      Override batch size
     --grad_accum N      Gradient accumulation steps
     --wandb             Enable Weights & Biases logging
@@ -59,6 +59,9 @@ def compute_aggregated_metrics(seed_results: list) -> dict:
         losses = [r["metrics"][length]["loss"] for r in seed_results if length in r["metrics"]]
         ppls = [r["metrics"][length]["perplexity"] for r in seed_results if length in r["metrics"]]
         entropies = [r["metrics"][length].get("attention_entropy_mean", 0.0) for r in seed_results if length in r["metrics"]]
+        sinks = [r["metrics"][length].get("attention_sink_ratio_mean", 0.0) for r in seed_results if length in r["metrics"]]
+        dists = [r["metrics"][length].get("effective_distance_mean", 0.0) for r in seed_results if length in r["metrics"]]
+        diags = [r["metrics"][length].get("diagonal_mass_ratio_mean", 0.0) for r in seed_results if length in r["metrics"]]
 
         metric_type = seed_results[0]["metrics"][length]["type"]
 
@@ -79,9 +82,25 @@ def compute_aggregated_metrics(seed_results: list) -> dict:
                 "std": round(float(np.std(entropies)), 4),
                 "values": entropies,
             },
+            "attention_sink_ratio": {
+                "mean": round(float(np.mean(sinks)), 4),
+                "std": round(float(np.std(sinks)), 4),
+                "values": sinks,
+            },
+            "effective_distance": {
+                "mean": round(float(np.mean(dists)), 2),
+                "std": round(float(np.std(dists)), 2),
+                "values": dists,
+            },
+            "diagonal_mass_ratio": {
+                "mean": round(float(np.mean(diags)), 4),
+                "std": round(float(np.std(diags)), 4),
+                "values": diags,
+            },
         }
 
     return aggregated
+
 
 
 def run_single_seed(args, base_config, seed: int, experiment_base_dir: str) -> dict:
@@ -239,8 +258,11 @@ Runs 2 seeds automatically (seed 42 & seed 43) and saves both in one zip file.
         for length, m in res_metrics.items():
             print(
                 f"  seq_len={int(length):>4d} ({m['type']:>14s}): "
-                f"Loss={m['loss']:.4f} | PPL={m['perplexity']:.2f} | Entropy={m['attention_entropy_mean']:.4f}"
+                f"Loss={m['loss']:.4f} | PPL={m['perplexity']:.2f} | Entropy={m.get('attention_entropy_mean', 0.0):.4f} | "
+                f"SinkRatio={m.get('attention_sink_ratio_mean', 0.0):.4f} | EffDist={m.get('effective_distance_mean', 0.0):.2f} | "
+                f"DiagMass={m.get('diagonal_mass_ratio_mean', 0.0):.4f}"
             )
+
 
     # Print folder tree of full experiment output
     print(f"\n{'='*60}")

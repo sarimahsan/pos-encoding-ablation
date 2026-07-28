@@ -13,7 +13,7 @@ from torch.amp import GradScaler, autocast
 
 from config import TransformerConfig
 from components import DecoderTransformer
-from evaluate import evaluate_at_length, compute_attention_entropy_detailed
+from evaluate import evaluate_at_length, compute_attention_metrics_detailed
 from evaluate.heatmaps import generate_attention_heatmap
 from utils.artifacts import ArtifactManager
 from .scheduler import build_cosine_scheduler
@@ -248,14 +248,22 @@ class Trainer:
                 self._save_checkpoint(step, best=True)
 
         train_key = f"val_{cfg.train_seq_len}"
-        entropy_data = None
+        geom_data = None
         if train_key in self.dataloaders:
-            entropy_data = compute_attention_entropy_detailed(
+            geom_data = compute_attention_metrics_detailed(
                 self.model, self.dataloaders[train_key], self.device,
-                self.use_amp, max_batches=5
+                self.use_amp, max_batches=5, K=16
             )
-            eval_results["attn_entropy_mean"] = round(entropy_data["mean"], 4)
-            print(f"    attn_entropy (mean): {entropy_data['mean']:.4f}")
+            eval_results["attn_entropy_mean"] = geom_data["entropy"]["mean"]
+            eval_results["attn_sink_ratio_mean"] = geom_data["sink_ratio"]["mean"]
+            eval_results["effective_distance_mean"] = geom_data["effective_distance"]["mean"]
+            eval_results["diagonal_mass_ratio_mean"] = geom_data["diagonal_mass_ratio"]["mean"]
+            print(
+                f"    attn_entropy={geom_data['entropy']['mean']:.4f} | "
+                f"sink_ratio={geom_data['sink_ratio']['mean']:.4f} | "
+                f"eff_dist={geom_data['effective_distance']['mean']:.2f} | "
+                f"diag_mass(K=16)={geom_data['diagonal_mass_ratio']['mean']:.4f}"
+            )
 
         self.val_results.append(eval_results)
 
@@ -281,12 +289,19 @@ class Trainer:
                 "extrapolation_lengths": [l for l in cfg.eval_seq_lens if l != cfg.train_seq_len],
                 "results": extrap_metrics,
             })
-            if entropy_data:
+            if geom_data:
                 self.artifacts.save_json("metrics", "attention_entropy.json", {
                     "run_name": cfg.run_name, "pos_encoding": cfg.pos_encoding,
-                    "step": step, "mean_entropy": entropy_data["mean"],
-                    "per_layer": entropy_data["per_layer"],
-                    "per_layer_per_head": entropy_data["per_layer_per_head"],
+                    "step": step, "mean_entropy": geom_data["entropy"]["mean"],
+                    "per_layer": geom_data["entropy"]["per_layer"],
+                    "per_layer_per_head": geom_data["entropy"]["per_layer_per_head"],
+                })
+                self.artifacts.save_json("metrics", "attention_geometry.json", {
+                    "run_name": cfg.run_name, "pos_encoding": cfg.pos_encoding,
+                    "train_seq_len": cfg.train_seq_len, "step": step,
+                    "eval_metrics": {
+                        str(cfg.train_seq_len): geom_data
+                    },
                 })
             self.artifacts.save_json("metrics", "final_summary.json", {
                 "run_name": cfg.run_name, "pos_encoding": cfg.pos_encoding,
