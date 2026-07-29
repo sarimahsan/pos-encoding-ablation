@@ -43,11 +43,11 @@ class TransformerConfig:
     beta2: float = 0.95
     weight_decay: float = 0.1
     warmup_steps: int = 500
-    train_steps: int = 12_000           # 6k steps = 1.68 epochs over WikiText-103 (~2.3 hours on T4)
+    train_steps: int = 6_000           # 6k steps = 1.68 epochs over WikiText-103 (~2.3 hours on T4)
     batch_size: int = 128              # sequences per step
-    grad_accum_steps: int = 1          # 1 pass per step for maximum step rate (~2.8+ steps/s)
+    grad_accum_steps: int = 2          # micro-batch 64 (peak VRAM ~5.5GB on Tesla T4)
     precision: str = "fp16"            # T4 = Turing, no native bf16
-    compile: bool = True               # PyTorch 2.x torch.compile kernel fusion
+    compile: bool = False              # disable PyTorch Inductor extra buffer overhead on T4
     grad_clip: float = 1.0            # global norm
     seed: int = 42
 
