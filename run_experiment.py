@@ -24,6 +24,7 @@ Optional overrides:
 
 import argparse
 import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import json
 import shutil
 import math

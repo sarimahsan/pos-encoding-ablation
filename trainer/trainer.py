@@ -3,6 +3,7 @@ Training loop — AdamW, cosine LR, fp16 mixed precision, gradient clipping.
 """
 
 import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import csv
 import math
 import time
