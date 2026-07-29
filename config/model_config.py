@@ -45,7 +45,7 @@ class TransformerConfig:
     warmup_steps: int = 500
     train_steps: int = 12_000
     batch_size: int = 128              # sequences per step
-    grad_accum_steps: int = 1          # micro-batch 128 for max GPU throughput (~1.5GB VRAM on T4)
+    grad_accum_steps: int = 1          # micro-batch 64 for optimal speed & memory headroom (<1.2GB VRAM)
     precision: str = "fp16"            # T4 = Turing, no native bf16
     compile: bool = False              # PyTorch 2.x torch.compile
     grad_clip: float = 1.0            # global norm

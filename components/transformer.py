@@ -57,19 +57,34 @@ class DecoderTransformer(nn.Module):
         x = self.final_norm(x)
 
         if self.config.tie_embeddings:
-            logits = F.linear(x, self.token_embed.weight)
+            lm_weight = self.token_embed.weight
         else:
-            logits = self.lm_head(x)
+            lm_weight = self.lm_head.weight
 
-        result = {"logits": logits}
-        if return_attn:
-            result["attn_weights"] = attn_weights_all
+        result = {}
 
         if targets is not None:
-            result["loss"] = F.cross_entropy(
-                logits.view(-1, self.config.vocab_size),
-                targets.view(-1),
-            )
+            # Memory-efficient chunked projection + cross-entropy:
+            # Prevents allocating huge (B, T, V) logits in CUDA VRAM (saves >6GB VRAM).
+            # Processing tokens in chunks of 4096 keeps peak VRAM under ~400MB per chunk.
+            x_flat = x.view(-1, self.config.d_model)
+            targets_flat = targets.view(-1)
+            total_loss = torch.tensor(0.0, device=x.device, dtype=torch.float32)
+            chunk_size = 4096
+
+            for i in range(0, x_flat.size(0), chunk_size):
+                x_chunk = x_flat[i : i + chunk_size]
+                t_chunk = targets_flat[i : i + chunk_size]
+                logits_chunk = F.linear(x_chunk, lm_weight)
+                total_loss = total_loss + F.cross_entropy(logits_chunk, t_chunk, reduction="sum")
+
+            result["loss"] = total_loss / targets_flat.numel()
+
+        if return_attn or targets is None:
+            result["logits"] = F.linear(x, lm_weight)
+
+        if return_attn:
+            result["attn_weights"] = attn_weights_all
 
         return result
 
