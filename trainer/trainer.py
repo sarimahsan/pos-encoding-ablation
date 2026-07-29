@@ -33,6 +33,9 @@ class Trainer:
         self.dataloaders = dataloaders
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        if self.device.type == "cuda":
+            torch.backends.cudnn.benchmark = True
+
         self.model.to(self.device)
         if hasattr(torch, "compile") and self.device.type == "cuda" and getattr(config, "compile", False):
             print("  Compiling model with PyTorch 2.x torch.compile()...")
@@ -165,13 +168,15 @@ class Trainer:
                         wandb.log(entry, step=step)
 
                     running_loss = 0.0
-                    step_start = time.time()
 
                 if step % cfg.eval_interval == 0:
                     self._run_eval(step)
 
                 if step % cfg.save_interval == 0:
                     self._save_checkpoint(step)
+
+                if step % cfg.log_interval == 0:
+                    step_start = time.time()
 
         except KeyboardInterrupt:
             self.anomalies.append({

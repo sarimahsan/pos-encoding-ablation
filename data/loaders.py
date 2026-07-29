@@ -52,6 +52,9 @@ def get_dataloaders(config: TransformerConfig) -> dict:
     if tokenizer.eos_token_id is None:
         tokenizer.eos_token_id = tokenizer.encode("<|endoftext|>")[0]
 
+    num_workers = 0 if os.name == "nt" else 2
+    pin_mem = torch.cuda.is_available()
+
     # Training data
     print(f"  Preparing training data (seq_len={config.train_seq_len})...")
     train_ds = _tokenize_and_pack("train", tokenizer, config.train_seq_len)
@@ -59,8 +62,8 @@ def get_dataloaders(config: TransformerConfig) -> dict:
         train_ds,
         batch_size=config.batch_size // config.grad_accum_steps,
         shuffle=True,
-        num_workers=2,
-        pin_memory=True,
+        num_workers=num_workers,
+        pin_memory=pin_mem,
         drop_last=True,
     )
     loaders = {"train": train_loader}
@@ -74,8 +77,8 @@ def get_dataloaders(config: TransformerConfig) -> dict:
             val_ds,
             batch_size=eval_batch_size,
             shuffle=False,
-            num_workers=2,
-            pin_memory=True,
+            num_workers=num_workers,
+            pin_memory=pin_mem,
             drop_last=True,
         )
         loaders[f"val_{eval_len}"] = val_loader

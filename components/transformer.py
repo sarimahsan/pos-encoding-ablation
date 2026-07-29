@@ -66,20 +66,10 @@ class DecoderTransformer(nn.Module):
             result["attn_weights"] = attn_weights_all
 
         if targets is not None:
-            # Chunked cross-entropy: process small batch slices to avoid
-            # OOM from fp32 softmax over 50k vocab (saves ~4GB peak memory)
-            V = self.config.vocab_size
-            ce_chunk = 8  # ~600MB peak per chunk vs ~5GB unchunked
-            total_loss = torch.tensor(0.0, device=logits.device, dtype=torch.float32)
-            n_tokens = 0
-            for i in range(0, logits.size(0), ce_chunk):
-                chunk_logits = logits[i:i+ce_chunk, :-1, :].contiguous().view(-1, V)
-                chunk_targets = targets[i:i+ce_chunk, 1:].contiguous().view(-1)
-                total_loss = total_loss + F.cross_entropy(
-                    chunk_logits, chunk_targets, reduction="sum"
-                )
-                n_tokens += chunk_targets.numel()
-            result["loss"] = total_loss / n_tokens
+            result["loss"] = F.cross_entropy(
+                logits.view(-1, self.config.vocab_size),
+                targets.view(-1),
+            )
 
         return result
 
