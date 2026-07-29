@@ -103,7 +103,7 @@ class Trainer:
         csv_file = open(csv_path, "w", newline="")
         csv_writer = csv.DictWriter(
             csv_file,
-            fieldnames=["step", "train_loss", "perplexity", "lr", "steps_per_sec"],
+            fieldnames=["step", "train_loss", "perplexity", "lr", "steps_per_sec", "tokens_per_sec"],
         )
         csv_writer.writeheader()
 
@@ -143,6 +143,7 @@ class Trainer:
                     lr = self.scheduler.get_last_lr()[0]
                     elapsed = time.time() - step_start
                     steps_per_sec = cfg.log_interval / elapsed
+                    tokens_per_sec = steps_per_sec * cfg.batch_size * cfg.train_seq_len
 
                     entry = {
                         "step": step,
@@ -150,6 +151,7 @@ class Trainer:
                         "perplexity": round(ppl, 2),
                         "lr": round(lr, 8),
                         "steps_per_sec": round(steps_per_sec, 2),
+                        "tokens_per_sec": round(tokens_per_sec, 0),
                     }
                     self.train_losses.append(entry)
                     jsonl_file.write(json.dumps(entry) + "\n")
@@ -160,7 +162,7 @@ class Trainer:
                     print(
                         f"  Step {step:>6d}/{cfg.train_steps} | "
                         f"loss {avg_loss:.4f} | ppl {ppl:.2f} | "
-                        f"lr {lr:.2e} | {steps_per_sec:.1f} steps/s"
+                        f"lr {lr:.2e} | {steps_per_sec:.1f} steps/s ({tokens_per_sec:,.0f} tok/s)"
                     )
 
                     if self.wandb_run:

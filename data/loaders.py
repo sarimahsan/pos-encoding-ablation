@@ -55,6 +55,8 @@ def get_dataloaders(config: TransformerConfig) -> dict:
     num_workers = 0 if os.name == "nt" else 2
     pin_mem = torch.cuda.is_available()
 
+    persistent = True if num_workers > 0 else False
+
     # Training data
     print(f"  Preparing training data (seq_len={config.train_seq_len})...")
     train_ds = _tokenize_and_pack("train", tokenizer, config.train_seq_len)
@@ -64,6 +66,7 @@ def get_dataloaders(config: TransformerConfig) -> dict:
         shuffle=True,
         num_workers=num_workers,
         pin_memory=pin_mem,
+        persistent_workers=persistent,
         drop_last=True,
     )
     loaders = {"train": train_loader}
@@ -79,6 +82,7 @@ def get_dataloaders(config: TransformerConfig) -> dict:
             shuffle=False,
             num_workers=num_workers,
             pin_memory=pin_mem,
+            persistent_workers=persistent,
             drop_last=True,
         )
         loaders[f"val_{eval_len}"] = val_loader

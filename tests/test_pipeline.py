@@ -151,7 +151,7 @@ def test_csv_and_json_logging_integrity(tmp_path):
     with open(csv_path, "r", newline="") as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
-        expected_fields = ["step", "train_loss", "perplexity", "lr", "steps_per_sec"]
+        expected_fields = ["step", "train_loss", "perplexity", "lr", "steps_per_sec", "tokens_per_sec"]
         for field in expected_fields:
             assert field in fieldnames, f"Missing field '{field}' in train_log.csv header"
 
@@ -164,6 +164,7 @@ def test_csv_and_json_logging_integrity(tmp_path):
             assert float(row["perplexity"]) > 0.0
             assert float(row["lr"]) > 0.0
             assert float(row["steps_per_sec"]) >= 0.0
+            assert float(row["tokens_per_sec"]) >= 0.0
 
     # 2. Verify train_log.jsonl content & structure
     jsonl_path = os.path.join(output_dir, "logs", "train_log.jsonl")
@@ -178,6 +179,7 @@ def test_csv_and_json_logging_integrity(tmp_path):
             assert "perplexity" in data
             assert "lr" in data
             assert "steps_per_sec" in data
+            assert "tokens_per_sec" in data
 
     # 3. Verify eval_results.jsonl contains attention geometry metrics
     eval_jsonl_path = os.path.join(output_dir, "logs", "eval_results.jsonl")
