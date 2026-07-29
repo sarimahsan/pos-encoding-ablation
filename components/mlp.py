@@ -13,14 +13,14 @@ from config import TransformerConfig
 
 class SwiGLU_MLP(nn.Module):
     """
-    Gated MLP with SiLU (Swish) activation.
+    Gated MLP with SiLU (Swish) activation using fused w13 linear projection.
     """
 
     def __init__(self, config: TransformerConfig):
         super().__init__()
-        self.w1 = nn.Linear(config.d_model, config.d_ff, bias=False)
-        self.w3 = nn.Linear(config.d_model, config.d_ff, bias=False)
+        self.w13 = nn.Linear(config.d_model, 2 * config.d_ff, bias=False)
         self.w2 = nn.Linear(config.d_ff, config.d_model, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.w2(F.silu(self.w1(x)) * self.w3(x))
+        w1_x, w3_x = self.w13(x).chunk(2, dim=-1)
+        return self.w2(F.silu(w1_x) * w3_x)
