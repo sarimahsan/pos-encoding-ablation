@@ -46,14 +46,13 @@ class Attention(nn.Module):
     def forward(self, x: torch.Tensor, return_attn: bool = False) -> tuple:
         B, T, _ = x.shape
 
-        # QKV projection → split into heads
-        qkv = self.qkv_proj(x)                                     # (B, T, 3D)
-        q, k, v = qkv.chunk(3, dim=-1)                             # each (B, T, D)
-
-        # Reshape to (B, H, T, Dh)
-        q = q.view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
-        k = k.view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
-        v = v.view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
+        # QKV projection → split into heads (B, H, T, Dh)
+        q, k, v = (
+            self.qkv_proj(x)
+            .view(B, T, 3, self.n_heads, self.head_dim)
+            .permute(2, 0, 3, 1, 4)
+            .unbind(0)
+        )
 
         # ── Positional encoding dispatch ─────────────────────────────
         if self.config.pos_encoding == "rope":

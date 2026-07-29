@@ -110,7 +110,7 @@ class Trainer:
         try:
             for step in range(1, cfg.train_steps + 1):
                 self.global_step = step
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=True)
                 accum_loss = 0.0
 
                 for _ in range(cfg.grad_accum_steps):
@@ -128,17 +128,17 @@ class Trainer:
                         loss = output["loss"] / cfg.grad_accum_steps
 
                     self.scaler.scale(loss).backward()
-                    accum_loss += loss.item()
+                    accum_loss = accum_loss + loss.detach()
 
                 self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
                 self.scheduler.step()
-                running_loss += accum_loss
+                running_loss = running_loss + accum_loss
 
                 if step % cfg.log_interval == 0:
-                    avg_loss = running_loss / cfg.log_interval
+                    avg_loss = (running_loss / cfg.log_interval).item()
                     ppl = math.exp(min(avg_loss, 20))
                     lr = self.scheduler.get_last_lr()[0]
                     elapsed = time.time() - step_start

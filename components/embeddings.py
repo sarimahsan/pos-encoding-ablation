@@ -55,8 +55,8 @@ class RotaryEmbedding(nn.Module):
         if seq_len > self.cos_cache.size(0):
             self._build_cache(seq_len)
 
-        cos = self.cos_cache[:seq_len].unsqueeze(0).unsqueeze(0)    # (1, 1, T, D)
-        sin = self.sin_cache[:seq_len].unsqueeze(0).unsqueeze(0)
+        cos = self.cos_cache[:seq_len].to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)    # (1, 1, T, D)
+        sin = self.sin_cache[:seq_len].to(dtype=q.dtype).unsqueeze(0).unsqueeze(0)
 
         q_rot = q * cos + self._rotate_half(q) * sin
         k_rot = k * cos + self._rotate_half(k) * sin
